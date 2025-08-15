@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Google Calendar LINE Notifier
+
+Parameters:
+  GoogleCredentials:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /google-calendar-line-notifier/google-creds
+    Description: Google Calendar API Service Account Credentials
+
+  LineChannelAccessToken:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /google-calendar-line-notifier/line-channel-access-token
+    Description: LINE Channel Access Token
+
+  LineUserId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /google-calendar-line-notifier/line-user-id
+    Description: LINE User ID
+
+  CalendarId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /google-calendar-line-notifier/calendar-id
+    Description: Google Calendar ID to monitor
+
+Globals:
+  Function:
+    Runtime: provided.al2023
+    Architectures:
+      - arm64
+    Timeout: 60
+    MemorySize: 256
+
+Resources:
+  GoogleCalendarLineNotifierFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: google-calendar-line-notifier
+      CodeUri: .
+      Handler: bootstrap
+      Description: Google Calendar LINE Notifier Lambda Function
+      Environment:
+        Variables:
+          LOG_LEVEL: "INFO"
+          TIMEZONE: "Asia/Tokyo"
+          GOOGLE_CREDENTIALS: !Ref GoogleCredentials
+          LINE_CHANNEL_ACCESS_TOKEN: !Ref LineChannelAccessToken
+          LINE_USER_ID: !Ref LineUserId
+          CALENDAR_ID: !Ref CalendarId
+
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            # 毎朝10:00 JST = 01:00 UTC
+            Schedule: cron(0 1 * * ? *)
+            Description: Google Calendar LINE Notifier Daily Schedule
+            Enabled: true
+
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+
+  GoogleCalendarLineNotifierLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/google-calendar-line-notifier"
+      RetentionInDays: 30
+
+Outputs:
+  GoogleCalendarLineNotifierFunction:
+    Description: Google Calendar LINE Notifier Lambda Function ARN
+    Value: !GetAtt GoogleCalendarLineNotifierFunction.Arn
+
+  GoogleCalendarLineNotifierFunctionIamRole:
+    Description: Implicit IAM Role created for Google Calendar LINE Notifier function
+    Value: !GetAtt GoogleCalendarLineNotifierFunctionRole.Arn

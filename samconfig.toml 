@@ -1,0 +1,9 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "google-calendar-line-notifier"
+region = "ap-northeast-1"
+s3_bucket = "google-calendar-line-notifier-sam-deploy-298557745729"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
