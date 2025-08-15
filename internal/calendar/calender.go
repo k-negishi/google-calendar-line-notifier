@@ -97,7 +97,7 @@ func (c *Client) GetEvents(ctx context.Context, startTime, endTime time.Time) ([
 	if err != nil {
 		return nil, fmt.Errorf("カレンダーイベントの取得に失敗しました: %v", err)
 	}
-	fmt.Printf("events: %v\n", events)
+	fmt.Printf("events.Items: %d件\n", events.Items)
 
 	// イベントを変換
 	var calendarEvents []Event

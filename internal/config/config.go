@@ -97,8 +97,6 @@ func loadAWSConfig() (*Config, error) {
 }
 
 // loadFromParameterStore Parameter Storeから機密情報を読み込み
-
-// loadFromParameterStore Parameter Storeから機密情報を読み込み
 func (cfg *Config) loadFromParameterStore() error {
 	ctx := context.Background()
 
@@ -120,19 +118,23 @@ func (cfg *Config) loadFromParameterStore() error {
 		return fmt.Errorf("LINE Channel Access Tokenの取得に失敗しました: %v", err)
 	}
 	cfg.LineChannelAccessToken = lineToken
+	// デバッグ: トークンの最初の10文字のみログ出力
+	fmt.Printf("LINE Token loaded (first 10 chars): %s...\n", cfg.LineChannelAccessToken[:10])
 
 	lineUserId, err := cfg.getParameter(ctx, lineUserIdParam, false) // String型
 	if err != nil {
 		return fmt.Errorf("LINE User IDの取得に失敗しました: %v", err)
 	}
 	cfg.LineUserID = lineUserId
+	// デバッグ: User IDの長さと最初の5文字をログ出力（セキュリティのため）
+	fmt.Printf("LINE User ID loaded: length=%d, first 5 chars=%s...\n", len(cfg.LineUserID), cfg.LineUserID[:5])
 
 	calendarId, err := cfg.getParameter(ctx, calendarIdParam, false) // String型
-	println("calendarId: ", calendarId)
 	if err != nil {
 		return fmt.Errorf("Calendar IDの取得に失敗しました: %v", err)
 	}
 	cfg.CalendarID = calendarId
+	fmt.Printf("Calendar ID loaded: %s\n", cfg.CalendarID)
 
 	return nil
 }
@@ -153,7 +155,15 @@ func (cfg *Config) getParameter(ctx context.Context, paramName string, withDecry
 		return "", fmt.Errorf("パラメータ %s が空です", paramName)
 	}
 
-	return *result.Parameter.Value, nil
+	value := *result.Parameter.Value
+	// 空白文字の削除
+	value = strings.TrimSpace(value)
+
+	if value == "" {
+		return "", fmt.Errorf("パラメータ %s が空の値です", paramName)
+	}
+
+	return value, nil
 }
 
 // GetGoogleCredentialsJSON Google認証情報をJSONとして解析

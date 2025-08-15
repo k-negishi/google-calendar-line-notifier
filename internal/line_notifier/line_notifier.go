@@ -124,6 +124,9 @@ func (notifier *Notifier) appendEventToMessage(builder *strings.Builder, event c
 
 // sendPushMessage LINE Push APIでメッセージを送信
 func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) error {
+	// デバッグ: User IDの確認
+	fmt.Printf("LINE API リクエスト - User ID: length=%d, first 5 chars=%s...\n", len(notifier.userID), notifier.userID[:5])
+
 	// リクエストボディを作成
 	pushRequest := PushRequest{
 		To: notifier.userID,
@@ -139,6 +142,9 @@ func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) e
 	if err != nil {
 		return fmt.Errorf("リクエストボディのJSON変換に失敗しました: %v", err)
 	}
+
+	// デバッグ: リクエストボディの確認（セキュリティのため一部マスク）
+	fmt.Printf("LINE API リクエストボディ（一部マスク）: %s\n", string(requestBody)[:100]+"...")
 
 	// HTTPリクエストを作成
 	req, err := http.NewRequestWithContext(
