@@ -2,27 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Google Calendar LINE Notifier
 
-Parameters:
-  GoogleCredentials:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /google-calendar-line-notifier/google-creds
-    Description: Google Calendar API Service Account Credentials
-
-  LineChannelAccessToken:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /google-calendar-line-notifier/line-channel-access-token
-    Description: LINE Channel Access Token
-
-  LineUserId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /google-calendar-line-notifier/line-user-id
-    Description: LINE User ID
-
-  CalendarId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /google-calendar-line-notifier/calendar-id
-    Description: Google Calendar ID to monitor
-
 Globals:
   Function:
     Runtime: provided.al2023
@@ -43,10 +22,11 @@ Resources:
         Variables:
           LOG_LEVEL: "INFO"
           TIMEZONE: "Asia/Tokyo"
-          GOOGLE_CREDENTIALS: !Ref GoogleCredentials
-          LINE_CHANNEL_ACCESS_TOKEN: !Ref LineChannelAccessToken
-          LINE_USER_ID: !Ref LineUserId
-          CALENDAR_ID: !Ref CalendarId
+          # SSMパラメータは環境変数から参照せず、実行時にSDKで取得する
+          SSM_GOOGLE_CREDS_PARAM: "/google-calendar-line-notifier/google-creds"
+          SSM_LINE_TOKEN_PARAM: "/google-calendar-line-notifier/line-channel-access-token"
+          SSM_LINE_USER_ID_PARAM: "/google-calendar-line-notifier/line-user-id"
+          SSM_CALENDAR_ID_PARAM: "/google-calendar-line-notifier/calendar-id"
 
       Events:
         DailySchedule:
@@ -66,6 +46,12 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: "*"
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/google-calendar-line-notifier/*"
 
   GoogleCalendarLineNotifierLogGroup:
     Type: AWS::Logs::LogGroup
