@@ -102,9 +102,6 @@ func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []cal
 		messageBuilder.WriteString(fmt.Sprintf("📅 明日 %s: 予定なし\n", tomorrow.Format("1/2 Mon")))
 	}
 
-	// フッター
-	messageBuilder.WriteString("\n✨ 良い一日をお過ごしください！")
-
 	return messageBuilder.String()
 }
 

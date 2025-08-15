@@ -98,31 +98,22 @@ func loadAWSConfig() (*Config, error) {
 
 // loadFromParameterStore Parameter Storeから機密情報を読み込み
 func (cfg *Config) loadFromParameterStore() error {
-	ctx := context.TODO()
+	// AWS Lambda環境では環境変数から直接取得
+	cfg.GoogleCredentials = getEnvOrDefault("GOOGLE_CREDENTIALS", "")
+	cfg.LineChannelAccessToken = getEnvOrDefault("LINE_CHANNEL_ACCESS_TOKEN", "")
+	cfg.LineUserID = getEnvOrDefault("LINE_USER_ID", "")
+	cfg.CalendarID = getEnvOrDefault("CALENDAR_ID", "primary")
 
-	// Google認証情報を取得
-	googleCredsParam := getEnvOrDefault("GOOGLE_CREDS_PARAM", "/calendar-notifier/google-creds")
-	googleCreds, err := cfg.getParameter(ctx, googleCredsParam, true)
-	if err != nil {
-		return fmt.Errorf("Google認証情報の取得に失敗しました: %v", err)
+	// 必須設定項目の確認
+	if cfg.GoogleCredentials == "" {
+		return fmt.Errorf("GOOGLE_CREDENTIALS環境変数が設定されていません")
 	}
-	cfg.GoogleCredentials = googleCreds
-
-	// LINE Channel Access Tokenを取得
-	lineTokenParam := getEnvOrDefault("LINE_CHANNEL_ACCESS_TOKEN_PARAM", "/calendar-notifier/line-channel-access-token")
-	lineToken, err := cfg.getParameter(ctx, lineTokenParam, true)
-	if err != nil {
-		return fmt.Errorf("LINE Channel Access Tokenの取得に失敗しました: %v", err)
+	if cfg.LineChannelAccessToken == "" {
+		return fmt.Errorf("LINE_CHANNEL_ACCESS_TOKEN環境変数が設定されていません")
 	}
-	cfg.LineChannelAccessToken = lineToken
-
-	// LINE User IDを取得
-	lineUserParam := getEnvOrDefault("LINE_USER_ID_PARAM", "/calendar-notifier/line-user-id")
-	lineUser, err := cfg.getParameter(ctx, lineUserParam, true)
-	if err != nil {
-		return fmt.Errorf("LINE User IDの取得に失敗しました: %v", err)
+	if cfg.LineUserID == "" {
+		return fmt.Errorf("LINE_USER_ID環境変数が設定されていません")
 	}
-	cfg.LineUserID = lineUser
 
 	return nil
 }
