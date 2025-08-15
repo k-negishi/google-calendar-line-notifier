@@ -119,15 +119,22 @@ func (cfg *Config) loadFromParameterStore() error {
 	}
 	cfg.LineChannelAccessToken = lineToken
 	// デバッグ: トークンの最初の10文字のみログ出力
-	fmt.Printf("LINE Token loaded (first 10 chars): %s...\n", cfg.LineChannelAccessToken[:10])
+	if len(cfg.LineChannelAccessToken) >= 10 {
+		fmt.Printf("LINE Token loaded (first 10 chars): %s...\n", cfg.LineChannelAccessToken[:10])
+	}
 
-	lineUserId, err := cfg.getParameter(ctx, lineUserIdParam, false) // String型
+	// LINE User ID も SecureString として取得するように修正
+	lineUserId, err := cfg.getParameter(ctx, lineUserIdParam, true) // SecureString用にwithDecryption=true に変更
 	if err != nil {
 		return fmt.Errorf("LINE User IDの取得に失敗しました: %v", err)
 	}
 	cfg.LineUserID = lineUserId
 	// デバッグ: User IDの長さと最初の5文字をログ出力（セキュリティのため）
-	fmt.Printf("LINE User ID loaded: length=%d, first 5 chars=%s...\n", len(cfg.LineUserID), cfg.LineUserID[:5])
+	if len(cfg.LineUserID) >= 5 {
+		fmt.Printf("LINE User ID loaded: length=%d, first 5 chars=%s...\n", len(cfg.LineUserID), cfg.LineUserID[:5])
+	} else {
+		fmt.Printf("LINE User ID loaded: length=%d, value=%s\n", len(cfg.LineUserID), cfg.LineUserID)
+	}
 
 	calendarId, err := cfg.getParameter(ctx, calendarIdParam, false) // String型
 	if err != nil {
