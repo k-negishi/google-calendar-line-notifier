@@ -68,10 +68,27 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 // GetEvents 指定された期間のイベントを取得
 func (c *Client) GetEvents(ctx context.Context, startTime, endTime time.Time) ([]Event, error) {
+	// startTimeとendTimeを指定されたタイムゾーン（JST）で明示的に設定
+	// Pythonの例: datetime(year, month, day, 0, 0, 0, tzinfo=jst).isoformat()
+	startTimeInTZ := time.Date(
+		startTime.Year(), startTime.Month(), startTime.Day(),
+		0, 0, 0, 0, c.timezone,
+	)
+	endTimeInTZ := time.Date(
+		endTime.Year(), endTime.Month(), endTime.Day(),
+		23, 59, 59, 0, c.timezone,
+	)
+
+	// JST タイムゾーン情報を含んだRFC3339形式で送信
+	timeMinStr := startTimeInTZ.Format(time.RFC3339)
+	timeMaxStr := endTimeInTZ.Format(time.RFC3339)
+
+	fmt.Printf("Google Calendar API リクエスト: timeMin=%s, timeMax=%s\n", timeMinStr, timeMaxStr)
+
 	// Google Calendar APIの呼び出し
 	eventsCall := c.service.Events.List(c.calendarID).
-		TimeMin(startTime.Format(time.RFC3339)).
-		TimeMax(endTime.Format(time.RFC3339)).
+		TimeMin(timeMinStr).
+		TimeMax(timeMaxStr).
 		SingleEvents(true).
 		OrderBy("startTime").
 		MaxResults(50) // 1日の予定上限を50件に設定
