@@ -2,6 +2,7 @@
 
 BINARY_NAME=bootstrap
 MAIN_PATH=cmd
+STACK_NAME=google-calendar-line-notifier
 
 # 依存関係インストール
 deps:
@@ -21,7 +22,7 @@ build:
 
 # デプロイ
 deploy: build
-	sam deploy
+	sam deploy --stack-name $(STACK_NAME) --region ap-northeast-1 --capabilities CAPABILITY_IAM --confirm-changeset
 
 # クリーンアップ
 clean:
