@@ -22,6 +22,7 @@ Resources:
         Variables:
           LOG_LEVEL: "INFO"
           TIMEZONE: "Asia/Tokyo"
+          TZ: "Asia/Tokyo"  # Lambda実行環境のタイムゾーンをJSTに設定
           # SSMパラメータは環境変数から参照せず、実行時にSDKで取得する
           SSM_GOOGLE_CREDS_PARAM: "/google-calendar-line-notifier/google-creds"
           SSM_LINE_TOKEN_PARAM: "/google-calendar-line-notifier/line-channel-access-token"
