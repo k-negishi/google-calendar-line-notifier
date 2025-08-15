@@ -97,23 +97,41 @@ func loadAWSConfig() (*Config, error) {
 }
 
 // loadFromParameterStore Parameter Storeから機密情報を読み込み
-func (cfg *Config) loadFromParameterStore() error {
-	// AWS Lambda環境では環境変数から直接取得
-	cfg.GoogleCredentials = getEnvOrDefault("GOOGLE_CREDENTIALS", "")
-	cfg.LineChannelAccessToken = getEnvOrDefault("LINE_CHANNEL_ACCESS_TOKEN", "")
-	cfg.LineUserID = getEnvOrDefault("LINE_USER_ID", "")
-	cfg.CalendarID = getEnvOrDefault("CALENDAR_ID", "primary")
 
-	// 必須設定項目の確認
-	if cfg.GoogleCredentials == "" {
-		return fmt.Errorf("GOOGLE_CREDENTIALS環境変数が設定されていません")
+// loadFromParameterStore Parameter Storeから機密情報を読み込み
+func (cfg *Config) loadFromParameterStore() error {
+	ctx := context.Background()
+
+	// 環境変数からパラメータ名を取得
+	googleCredsParam := getEnvOrDefault("SSM_GOOGLE_CREDS_PARAM", "/google-calendar-line-notifier/google-creds")
+	lineTokenParam := getEnvOrDefault("SSM_LINE_TOKEN_PARAM", "/google-calendar-line-notifier/line-channel-access-token")
+	lineUserIdParam := getEnvOrDefault("SSM_LINE_USER_ID_PARAM", "/google-calendar-line-notifier/line-user-id")
+	calendarIdParam := getEnvOrDefault("SSM_CALENDAR_ID_PARAM", "/google-calendar-line-notifier/calendar-id")
+
+	// Parameter Storeから値を取得
+	googleCreds, err := cfg.getParameter(ctx, googleCredsParam, true) // SecureString用にwithDecryption=true
+	if err != nil {
+		return fmt.Errorf("Google認証情報の取得に失敗しました: %v", err)
 	}
-	if cfg.LineChannelAccessToken == "" {
-		return fmt.Errorf("LINE_CHANNEL_ACCESS_TOKEN環境変数が設定されていません")
+	cfg.GoogleCredentials = googleCreds
+
+	lineToken, err := cfg.getParameter(ctx, lineTokenParam, true) // SecureString用にwithDecryption=true
+	if err != nil {
+		return fmt.Errorf("LINE Channel Access Tokenの取得に失敗しました: %v", err)
 	}
-	if cfg.LineUserID == "" {
-		return fmt.Errorf("LINE_USER_ID環境変数が設定されていません")
+	cfg.LineChannelAccessToken = lineToken
+
+	lineUserId, err := cfg.getParameter(ctx, lineUserIdParam, false) // String型
+	if err != nil {
+		return fmt.Errorf("LINE User IDの取得に失敗しました: %v", err)
 	}
+	cfg.LineUserID = lineUserId
+
+	calendarId, err := cfg.getParameter(ctx, calendarIdParam, false) // String型
+	if err != nil {
+		return fmt.Errorf("Calendar IDの取得に失敗しました: %v", err)
+	}
+	cfg.CalendarID = calendarId
 
 	return nil
 }
