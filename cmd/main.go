@@ -53,10 +53,13 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 	// 現在時刻（日本時間）を取得
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(jst)
-	today := now.Truncate(24 * time.Hour)
+
+	// タイムゾーン情報を保持したまま今日と明日の開始時刻を計算
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jst)
 	tomorrow := today.Add(24 * time.Hour)
 
 	log.Printf("通知対象日: 今日=%s, 明日=%s", today.Format("2006-01-02"), tomorrow.Format("2006-01-02"))
+	log.Printf("タイムゾーン確認: 今日=%s, 明日=%s", today.Format(time.RFC3339), tomorrow.Format(time.RFC3339))
 
 	// 今日と明日の予定を取得
 	todayEvents, err := calendarClient.GetEvents(ctx, today, today.Add(24*time.Hour))
