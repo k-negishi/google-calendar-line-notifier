@@ -22,7 +22,7 @@ build:
 
 # デプロイ
 deploy: build
-	sam deploy --stack-name $(STACK_NAME) --region ap-northeast-1 --capabilities CAPABILITY_IAM --confirm-changeset
+	sam deploy --stack-name $(STACK_NAME) --region ap-northeast-1 --capabilities CAPABILITY_IAM --no-confirm-changeset
 
 # クリーンアップ
 clean:

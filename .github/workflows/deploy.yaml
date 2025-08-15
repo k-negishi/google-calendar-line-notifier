@@ -1,3 +1,4 @@
+
 name: Deploy Google Calendar LINE Notifier
 
 on:
@@ -8,6 +9,7 @@ on:
 env:
   GO_VERSION: '1.23.0'
   AWS_REGION: ap-northeast-1
+  SAM_CLI_TELEMETRY: 0
 
 jobs:
   deploy:
@@ -36,4 +38,4 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: SAM Deploy
-        run: make deploy
+        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
