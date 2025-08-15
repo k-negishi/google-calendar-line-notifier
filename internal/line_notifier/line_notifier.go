@@ -53,25 +53,25 @@ func NewNotifier(cfg *config.Config) *Notifier {
 }
 
 // SendScheduleNotification カレンダー予定をLINEで通知
-func (n *Notifier) SendScheduleNotification(ctx context.Context, todayEvents, tomorrowEvents []calendar.Event) error {
+func (notifier *Notifier) SendScheduleNotification(ctx context.Context, todayEvents, tomorrowEvents []calendar.Event) error {
 	// 通知メッセージを作成
-	message := n.buildScheduleMessage(todayEvents, tomorrowEvents)
+	message := notifier.buildScheduleMessage(todayEvents, tomorrowEvents)
 
 	// LINE Push APIでメッセージを送信
-	return n.sendPushMessage(ctx, message)
+	return notifier.sendPushMessage(ctx, message)
 }
 
 // SendTestMessage テスト用メッセージを送信（開発・デバッグ用）
-func (n *Notifier) SendTestMessage(ctx context.Context, message string) error {
+func (notifier *Notifier) SendTestMessage(ctx context.Context, message string) error {
 	testMessage := fmt.Sprintf("🧪 テストメッセージ\n\n%s\n\n⏰ 送信時刻: %s",
 		message,
 		time.Now().Format("2006/01/02 15:04:05"))
 
-	return n.sendPushMessage(ctx, testMessage)
+	return notifier.sendPushMessage(ctx, testMessage)
 }
 
 // buildScheduleMessage 予定通知用のメッセージを構築
-func (n *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []calendar.Event) string {
+func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []calendar.Event) string {
 	var messageBuilder strings.Builder
 
 	// ヘッダー
@@ -83,7 +83,7 @@ func (n *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []calendar.E
 	if len(todayEvents) > 0 {
 		messageBuilder.WriteString(fmt.Sprintf("📅 今日 (%d件):\n", len(todayEvents)))
 		for _, event := range todayEvents {
-			n.appendEventToMessage(&messageBuilder, event)
+			notifier.appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
 		messageBuilder.WriteString("📅 今日: 予定なし\n")
@@ -96,7 +96,7 @@ func (n *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []calendar.E
 	if len(tomorrowEvents) > 0 {
 		messageBuilder.WriteString(fmt.Sprintf("📅 明日 %s (%d件):\n", tomorrow.Format("1/2 Mon"), len(tomorrowEvents)))
 		for _, event := range tomorrowEvents {
-			n.appendEventToMessage(&messageBuilder, event)
+			notifier.appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
 		messageBuilder.WriteString(fmt.Sprintf("📅 明日 %s: 予定なし\n", tomorrow.Format("1/2 Mon")))
@@ -109,7 +109,7 @@ func (n *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []calendar.E
 }
 
 // appendEventToMessage イベントをメッセージに追加
-func (n *Notifier) appendEventToMessage(builder *strings.Builder, event calendar.Event) {
+func (notifier *Notifier) appendEventToMessage(builder *strings.Builder, event calendar.Event) {
 	if event.IsAllDay {
 		builder.WriteString(fmt.Sprintf("🔸 %s (終日)\n", event.Title))
 	} else {
@@ -126,10 +126,10 @@ func (n *Notifier) appendEventToMessage(builder *strings.Builder, event calendar
 }
 
 // sendPushMessage LINE Push APIでメッセージを送信
-func (n *Notifier) sendPushMessage(ctx context.Context, message string) error {
+func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) error {
 	// リクエストボディを作成
 	pushRequest := PushRequest{
-		To: n.userID,
+		To: notifier.userID,
 		Messages: []Message{
 			{
 				Type: "text",
@@ -156,10 +156,10 @@ func (n *Notifier) sendPushMessage(ctx context.Context, message string) error {
 
 	// ヘッダーを設定
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.channelAccessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", notifier.channelAccessToken))
 
 	// APIリクエストを送信
-	resp, err := n.httpClient.Do(req)
+	resp, err := notifier.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("LINE APIリクエストの送信に失敗しました: %v", err)
 	}

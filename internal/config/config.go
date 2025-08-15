@@ -97,44 +97,44 @@ func loadAWSConfig() (*Config, error) {
 }
 
 // loadFromParameterStore Parameter Storeから機密情報を読み込み
-func (c *Config) loadFromParameterStore() error {
+func (cfg *Config) loadFromParameterStore() error {
 	ctx := context.TODO()
 
 	// Google認証情報を取得
 	googleCredsParam := getEnvOrDefault("GOOGLE_CREDS_PARAM", "/calendar-notifier/google-creds")
-	googleCreds, err := c.getParameter(ctx, googleCredsParam, true)
+	googleCreds, err := cfg.getParameter(ctx, googleCredsParam, true)
 	if err != nil {
 		return fmt.Errorf("Google認証情報の取得に失敗しました: %v", err)
 	}
-	c.GoogleCredentials = googleCreds
+	cfg.GoogleCredentials = googleCreds
 
 	// LINE Channel Access Tokenを取得
 	lineTokenParam := getEnvOrDefault("LINE_CHANNEL_ACCESS_TOKEN_PARAM", "/calendar-notifier/line-channel-access-token")
-	lineToken, err := c.getParameter(ctx, lineTokenParam, true)
+	lineToken, err := cfg.getParameter(ctx, lineTokenParam, true)
 	if err != nil {
 		return fmt.Errorf("LINE Channel Access Tokenの取得に失敗しました: %v", err)
 	}
-	c.LineChannelAccessToken = lineToken
+	cfg.LineChannelAccessToken = lineToken
 
 	// LINE User IDを取得
 	lineUserParam := getEnvOrDefault("LINE_USER_ID_PARAM", "/calendar-notifier/line-user-id")
-	lineUser, err := c.getParameter(ctx, lineUserParam, true)
+	lineUser, err := cfg.getParameter(ctx, lineUserParam, true)
 	if err != nil {
 		return fmt.Errorf("LINE User IDの取得に失敗しました: %v", err)
 	}
-	c.LineUserID = lineUser
+	cfg.LineUserID = lineUser
 
 	return nil
 }
 
 // getParameter Parameter Storeから指定されたパラメータを取得
-func (c *Config) getParameter(ctx context.Context, paramName string, withDecryption bool) (string, error) {
+func (cfg *Config) getParameter(ctx context.Context, paramName string, withDecryption bool) (string, error) {
 	input := &ssm.GetParameterInput{
 		Name:           aws.String(paramName),
 		WithDecryption: aws.Bool(withDecryption),
 	}
 
-	result, err := c.ssmClient.GetParameter(ctx, input)
+	result, err := cfg.ssmClient.GetParameter(ctx, input)
 	if err != nil {
 		return "", fmt.Errorf("パラメータ %s の取得に失敗しました: %v", paramName, err)
 	}
@@ -147,9 +147,9 @@ func (c *Config) getParameter(ctx context.Context, paramName string, withDecrypt
 }
 
 // GetGoogleCredentialsJSON Google認証情報をJSONとして解析
-func (c *Config) GetGoogleCredentialsJSON() (map[string]interface{}, error) {
+func (cfg *Config) GetGoogleCredentialsJSON() (map[string]interface{}, error) {
 	var credentials map[string]interface{}
-	if err := json.Unmarshal([]byte(c.GoogleCredentials), &credentials); err != nil {
+	if err := json.Unmarshal([]byte(cfg.GoogleCredentials), &credentials); err != nil {
 		return nil, fmt.Errorf("Google認証情報のJSON解析に失敗しました: %v", err)
 	}
 	return credentials, nil
