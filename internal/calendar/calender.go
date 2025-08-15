@@ -97,7 +97,19 @@ func (c *Client) GetEvents(ctx context.Context, startTime, endTime time.Time) ([
 	if err != nil {
 		return nil, fmt.Errorf("カレンダーイベントの取得に失敗しました: %v", err)
 	}
-	fmt.Printf("events.Items: %d件\n", events.Items)
+
+	// イベント数を標準出力（修正）
+	fmt.Printf("取得したイベント数: %d件\n", len(events.Items))
+
+	// 各イベントの詳細をログ出力（デバッグ用、修正）
+	for i, event := range events.Items {
+		fmt.Printf("Event[%d]: ID=%s, Summary=%s, Start=%s, End=%s\n",
+			i,
+			event.Id,
+			event.Summary,
+			getEventTimeString(event.Start),
+			getEventTimeString(event.End))
+	}
 
 	// イベントを変換
 	var calendarEvents []Event
@@ -111,6 +123,16 @@ func (c *Client) GetEvents(ctx context.Context, startTime, endTime time.Time) ([
 	}
 
 	return calendarEvents, nil
+}
+
+// getEventTimeString イベント時刻を文字列で取得（デバッグ用）
+func getEventTimeString(eventTime *calendar.EventDateTime) string {
+	if eventTime.DateTime != "" {
+		return eventTime.DateTime
+	} else if eventTime.Date != "" {
+		return eventTime.Date + " (終日)"
+	}
+	return "時刻不明"
 }
 
 // convertToEvent Google Calendar APIのイベントを内部構造体に変換
