@@ -1,7 +1,7 @@
 # Google Calendar LINE Notifier
 
 BINARY_NAME=bootstrap
-MAIN_PATH=cmd/app
+MAIN_PATH=cmd
 
 # 依存関係インストール
 deps:
