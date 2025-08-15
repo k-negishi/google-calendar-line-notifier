@@ -128,6 +128,7 @@ func (cfg *Config) loadFromParameterStore() error {
 	cfg.LineUserID = lineUserId
 
 	calendarId, err := cfg.getParameter(ctx, calendarIdParam, false) // String型
+	println("calendarId: ", calendarId)
 	if err != nil {
 		return fmt.Errorf("Calendar IDの取得に失敗しました: %v", err)
 	}
