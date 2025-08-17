@@ -77,16 +77,16 @@ func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []cal
 	// ヘッダー
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(jst)
-	messageBuilder.WriteString(fmt.Sprintf("🌅 今日の予定 (%s)\n\n", now.Format("1/2 Mon")))
+	messageBuilder.WriteString(fmt.Sprintf("🌅 本日の予定 (%s)\n\n", now.Format("1/2 Mon")))
 
 	// 今日の予定
 	if len(todayEvents) > 0 {
-		messageBuilder.WriteString(fmt.Sprintf("📅 今日 (%d件):\n", len(todayEvents)))
+		messageBuilder.WriteString(fmt.Sprintf("🟣 本日 (%d件):\n", len(todayEvents)))
 		for _, event := range todayEvents {
 			notifier.appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
-		messageBuilder.WriteString("📅 今日: 予定なし\n")
+		messageBuilder.WriteString("🟣 本日: 予定なし\n")
 	}
 
 	messageBuilder.WriteString("\n")
@@ -94,12 +94,12 @@ func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []cal
 	// 明日の予定
 	tomorrow := now.Add(24 * time.Hour)
 	if len(tomorrowEvents) > 0 {
-		messageBuilder.WriteString(fmt.Sprintf("📅 明日 %s (%d件):\n", tomorrow.Format("1/2 Mon"), len(tomorrowEvents)))
+		messageBuilder.WriteString(fmt.Sprintf("🟠 翌日 %s (%d件):\n", tomorrow.Format("1/2 Mon"), len(tomorrowEvents)))
 		for _, event := range tomorrowEvents {
 			notifier.appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
-		messageBuilder.WriteString(fmt.Sprintf("📅 明日 %s: 予定なし\n", tomorrow.Format("1/2 Mon")))
+		messageBuilder.WriteString(fmt.Sprintf("🟠 翌日 %s: 予定なし\n", tomorrow.Format("1/2 Mon")))
 	}
 
 	return messageBuilder.String()
