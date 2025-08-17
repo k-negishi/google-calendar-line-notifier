@@ -50,19 +50,20 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 	// LINE通知クライアントを初期化
 	lineNotifier := line_notifier.NewNotifier(cfg)
 
-	// 現在時刻（日本時間）を取得
+	// JST固定で現在時刻を取得
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(jst)
 
-	// タイムゾーン情報を保持したまま今日と明日の開始時刻を計算
+	// JST固定で今日と明日の日付を確実に計算
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jst)
-	tomorrow := today.Add(24 * time.Hour)
+	tomorrow := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, jst)
 
+	log.Printf("実行時刻: %s (JST)", now.Format("2006-01-02 15:04:05"))
 	log.Printf("通知対象日: 今日=%s, 明日=%s", today.Format("2006-01-02"), tomorrow.Format("2006-01-02"))
 	log.Printf("タイムゾーン確認: 今日=%s, 明日=%s", today.Format(time.RFC3339), tomorrow.Format(time.RFC3339))
 
 	// 今日と明日の予定を取得
-	todayEvents, err := calendarClient.GetEvents(ctx, today, today.Add(24*time.Hour))
+	todayEvents, err := calendarClient.GetEvents(ctx, today)
 	if err != nil {
 		log.Printf("今日の予定取得に失敗しました: %v", err)
 		return LambdaResponse{
@@ -71,7 +72,7 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 		}, err
 	}
 
-	tomorrowEvents, err := calendarClient.GetEvents(ctx, tomorrow, tomorrow.Add(24*time.Hour))
+	tomorrowEvents, err := calendarClient.GetEvents(ctx, tomorrow)
 	if err != nil {
 		log.Printf("明日の予定取得に失敗しました: %v", err)
 		return LambdaResponse{

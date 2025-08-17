@@ -25,7 +25,6 @@ type Config struct {
 
 	// その他設定
 	LogLevel string
-	Timezone string
 
 	// AWS関連（本番環境でのみ使用）
 	ssmClient *ssm.Client
@@ -54,7 +53,6 @@ func loadLocalConfig() (*Config, error) {
 		LineChannelAccessToken: getEnvOrDefault("LINE_CHANNEL_ACCESS_TOKEN", ""),
 		LineUserID:             getEnvOrDefault("LINE_USER_ID", ""),
 		LogLevel:               getEnvOrDefault("LOG_LEVEL", "INFO"),
-		Timezone:               getEnvOrDefault("TIMEZONE", "Asia/Tokyo"),
 	}
 
 	// 必須設定項目の確認
@@ -84,7 +82,6 @@ func loadAWSConfig() (*Config, error) {
 	cfg := &Config{
 		CalendarID: getEnvOrDefault("CALENDAR_ID", "primary"),
 		LogLevel:   getEnvOrDefault("LOG_LEVEL", "INFO"),
-		Timezone:   getEnvOrDefault("TIMEZONE", "Asia/Tokyo"),
 		ssmClient:  ssmClient,
 	}
 

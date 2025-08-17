@@ -32,10 +32,10 @@ type Client struct {
 
 // NewClient Google Calendarクライアントを作成
 func NewClient(cfg *config.Config) (*Client, error) {
-	// タイムゾーンを設定
-	timezone, err := time.LoadLocation(cfg.Timezone)
+	// JST固定でタイムゾーンを設定
+	timezone, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
-		return nil, fmt.Errorf("タイムゾーンの読み込みに失敗しました: %v", err)
+		return nil, fmt.Errorf("JSTタイムゾーンの読み込みに失敗しました: %v", err)
 	}
 
 	// Google認証情報を準備
@@ -66,24 +66,28 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	}, nil
 }
 
-// GetEvents 指定された期間のイベントを取得
-func (c *Client) GetEvents(ctx context.Context, startTime, endTime time.Time) ([]Event, error) {
-	// startTimeとendTimeを指定されたタイムゾーン（JST）で明示的に設定
-	// Pythonの例: datetime(year, month, day, 0, 0, 0, tzinfo=jst).isoformat()
-	startTimeInTZ := time.Date(
-		startTime.Year(), startTime.Month(), startTime.Day(),
-		0, 0, 0, 0, c.timezone,
-	)
-	endTimeInTZ := time.Date(
-		endTime.Year(), endTime.Month(), endTime.Day(),
-		23, 59, 59, 0, c.timezone,
+// GetEvents 指定された日の予定を取得
+func (c *Client) GetEvents(ctx context.Context, targetDate time.Time) ([]Event, error) {
+	// JST固定で開始時刻と終了時刻を設定
+	jst, _ := time.LoadLocation("Asia/Tokyo")
+
+	// 開始時刻: 指定日の00:00:00 (JST) - inclusive
+	startTimeInJST := time.Date(
+		targetDate.Year(), targetDate.Month(), targetDate.Day(),
+		0, 0, 0, 0, jst,
 	)
 
-	// JST タイムゾーン情報を含んだRFC3339形式で送信
-	timeMinStr := startTimeInTZ.Format(time.RFC3339)
-	timeMaxStr := endTimeInTZ.Format(time.RFC3339)
+	// 終了時刻: 翌日の00:00:00 (JST) - exclusive
+	endTimeInJST := startTimeInJST.Add(24 * time.Hour)
+
+	// RFC3339形式で送信（タイムゾーン情報付き）
+	timeMinStr := startTimeInJST.Format(time.RFC3339)
+	timeMaxStr := endTimeInJST.Format(time.RFC3339)
 
 	fmt.Printf("Google Calendar API リクエスト: timeMin=%s, timeMax=%s\n", timeMinStr, timeMaxStr)
+	fmt.Printf("取得対象期間: %s 00:00:00 (inclusive) 〜 %s 00:00:00 (exclusive) JST固定\n",
+		startTimeInJST.Format("2006-01-02"),
+		endTimeInJST.Format("2006-01-02"))
 
 	// Google Calendar APIの呼び出し
 	eventsCall := c.service.Events.List(c.calendarID).
@@ -98,10 +102,10 @@ func (c *Client) GetEvents(ctx context.Context, startTime, endTime time.Time) ([
 		return nil, fmt.Errorf("カレンダーイベントの取得に失敗しました: %v", err)
 	}
 
-	// イベント数を標準出力（修正）
+	// イベント数を標準出力
 	fmt.Printf("取得したイベント数: %d件\n", len(events.Items))
 
-	// 各イベントの詳細をログ出力（デバッグ用、修正）
+	// 各イベントの詳細をログ出力（デバッグ用）
 	for i, event := range events.Items {
 		fmt.Printf("Event[%d]: ID=%s, Summary=%s, Start=%s, End=%s\n",
 			i,
