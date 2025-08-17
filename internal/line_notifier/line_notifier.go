@@ -77,29 +77,33 @@ func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []cal
 	// ヘッダー
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(jst)
-	messageBuilder.WriteString(fmt.Sprintf("🌅 本日の予定 (%s)\n\n", now.Format("1/2 Mon")))
+	//messageBuilder.WriteString(fmt.Sprintf("🌅 本日の予定 (%s)\n\n", now.Format("1/2 Mon")))
+	// Google Calendar LINE Notifier
+	messageBuilder.WriteString("Google Calendar LINE Notifier\n\n")
 
-	// 今日の予定
+	// 本日の予定
+	dowToday := getWeekdayJapanese(now.Weekday())
 	if len(todayEvents) > 0 {
-		messageBuilder.WriteString(fmt.Sprintf("🟣 本日 (%d件):\n", len(todayEvents)))
+		messageBuilder.WriteString(fmt.Sprintf("本日 %s(%s) (%d件):\n", now.Format("1/2"), dowToday, len(todayEvents)))
 		for _, event := range todayEvents {
 			notifier.appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
-		messageBuilder.WriteString("🟣 本日: 予定なし\n")
+		messageBuilder.WriteString(fmt.Sprintf("本日 %s(%s): 予定なし\n", now.Format("1/2"), dowToday))
 	}
 
-	messageBuilder.WriteString("\n")
+	messageBuilder.WriteString("\n\n")
 
-	// 明日の予定
+	// 翌日の予定
 	tomorrow := now.Add(24 * time.Hour)
+	dowTomorrow := getWeekdayJapanese(tomorrow.Weekday())
 	if len(tomorrowEvents) > 0 {
-		messageBuilder.WriteString(fmt.Sprintf("🟠 翌日 %s (%d件):\n", tomorrow.Format("1/2 Mon"), len(tomorrowEvents)))
+		messageBuilder.WriteString(fmt.Sprintf("翌日 %s(%s) (%d件):\n", tomorrow.Format("1/2"), dowTomorrow, len(tomorrowEvents)))
 		for _, event := range tomorrowEvents {
 			notifier.appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
-		messageBuilder.WriteString(fmt.Sprintf("🟠 翌日 %s: 予定なし\n", tomorrow.Format("1/2 Mon")))
+		messageBuilder.WriteString(fmt.Sprintf("翌日 %s(%s): 予定なし\n", tomorrow.Format("1/2"), dowTomorrow))
 	}
 
 	return messageBuilder.String()
@@ -185,4 +189,18 @@ func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) e
 	}
 
 	return nil
+}
+
+// getWeekdayJapanese 曜日を日本語に変換
+func getWeekdayJapanese(weekday time.Weekday) string {
+	weekdays := map[time.Weekday]string{
+		time.Sunday:    "日",
+		time.Monday:    "月",
+		time.Tuesday:   "火",
+		time.Wednesday: "水",
+		time.Thursday:  "木",
+		time.Friday:    "金",
+		time.Saturday:  "土",
+	}
+	return weekdays[weekday]
 }
