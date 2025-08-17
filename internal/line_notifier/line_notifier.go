@@ -64,29 +64,27 @@ func (notifier *Notifier) SendScheduleNotification(ctx context.Context, todayEve
 // buildScheduleMessage 予定通知用のメッセージを構築
 func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []calendar.Event) string {
 	var messageBuilder strings.Builder
-
-	// ヘッダー
 	jst, _ := time.LoadLocation("Asia/Tokyo")
-	now := time.Now().In(jst)
-	//messageBuilder.WriteString(fmt.Sprintf("🌅 本日の予定 (%s)\n\n", now.Format("1/2 Mon")))
+	today := time.Now().In(jst)
+
 	// Google Calendar LINE Notifier
 	messageBuilder.WriteString("Google Calendar LINE Notifier\n\n")
 
 	// 本日の予定
-	dowToday := getWeekdayJapanese(now.Weekday())
+	dowToday := getWeekdayJapanese(today.Weekday())
 	if len(todayEvents) > 0 {
-		messageBuilder.WriteString(fmt.Sprintf("本日 %s(%s) (%d件):\n", now.Format("1/2"), dowToday, len(todayEvents)))
+		messageBuilder.WriteString(fmt.Sprintf("本日 %s(%s) (%d件):\n", today.Format("1/2"), dowToday, len(todayEvents)))
 		for _, event := range todayEvents {
 			notifier.appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
-		messageBuilder.WriteString(fmt.Sprintf("本日 %s(%s): 予定なし\n", now.Format("1/2"), dowToday))
+		messageBuilder.WriteString(fmt.Sprintf("本日 %s(%s): 予定なし\n", today.Format("1/2"), dowToday))
 	}
 
 	messageBuilder.WriteString("\n\n")
 
 	// 翌日の予定
-	tomorrow := now.Add(24 * time.Hour)
+	tomorrow := today.Add(24 * time.Hour)
 	dowTomorrow := getWeekdayJapanese(tomorrow.Weekday())
 	if len(tomorrowEvents) > 0 {
 		messageBuilder.WriteString(fmt.Sprintf("翌日 %s(%s) (%d件):\n", tomorrow.Format("1/2"), dowTomorrow, len(tomorrowEvents)))
@@ -119,9 +117,6 @@ func (notifier *Notifier) appendEventToMessage(builder *strings.Builder, event c
 
 // sendPushMessage LINE Push APIでメッセージを送信
 func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) error {
-	// デバッグ: User IDの確認
-	fmt.Printf("LINE API リクエスト - User ID: length=%d, first 5 chars=%s...\n", len(notifier.userID), notifier.userID[:5])
-
 	// リクエストボディを作成
 	pushRequest := PushRequest{
 		To: notifier.userID,
@@ -137,9 +132,6 @@ func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) e
 	if err != nil {
 		return fmt.Errorf("リクエストボディのJSON変換に失敗しました: %v", err)
 	}
-
-	// デバッグ: リクエストボディの確認（セキュリティのため一部マスク）
-	fmt.Printf("LINE API リクエストボディ（一部マスク）: %s\n", string(requestBody)[:100]+"...")
 
 	// HTTPリクエストを作成
 	req, err := http.NewRequestWithContext(

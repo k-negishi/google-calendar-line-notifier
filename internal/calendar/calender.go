@@ -80,14 +80,9 @@ func (c *Client) GetEvents(ctx context.Context, targetDate time.Time) ([]Event, 
 	// 終了時刻: 翌日の00:00:00 (JST) - exclusive
 	endTimeInJST := startTimeInJST.Add(24 * time.Hour)
 
-	// RFC3339形式で送信（タイムゾーン情報付き）
+	// RFC3339形式に変換（タイムゾーン情報付き）
 	timeMinStr := startTimeInJST.Format(time.RFC3339)
 	timeMaxStr := endTimeInJST.Format(time.RFC3339)
-
-	fmt.Printf("Google Calendar API リクエスト: timeMin=%s, timeMax=%s\n", timeMinStr, timeMaxStr)
-	fmt.Printf("取得対象期間: %s 00:00:00 (inclusive) 〜 %s 00:00:00 (exclusive) JST固定\n",
-		startTimeInJST.Format("2006-01-02"),
-		endTimeInJST.Format("2006-01-02"))
 
 	// Google Calendar APIの呼び出し
 	eventsCall := c.service.Events.List(c.calendarID).
@@ -102,19 +97,6 @@ func (c *Client) GetEvents(ctx context.Context, targetDate time.Time) ([]Event, 
 		return nil, fmt.Errorf("カレンダーイベントの取得に失敗しました: %v", err)
 	}
 
-	// イベント数を標準出力
-	fmt.Printf("取得したイベント数: %d件\n", len(events.Items))
-
-	// 各イベントの詳細をログ出力（デバッグ用）
-	for i, event := range events.Items {
-		fmt.Printf("Event[%d]: ID=%s, Summary=%s, Start=%s, End=%s\n",
-			i,
-			event.Id,
-			event.Summary,
-			getEventTimeString(event.Start),
-			getEventTimeString(event.End))
-	}
-
 	// イベントを変換
 	var calendarEvents []Event
 	for _, event := range events.Items {
@@ -127,16 +109,6 @@ func (c *Client) GetEvents(ctx context.Context, targetDate time.Time) ([]Event, 
 	}
 
 	return calendarEvents, nil
-}
-
-// getEventTimeString イベント時刻を文字列で取得（デバッグ用）
-func getEventTimeString(eventTime *calendar.EventDateTime) string {
-	if eventTime.DateTime != "" {
-		return eventTime.DateTime
-	} else if eventTime.Date != "" {
-		return eventTime.Date + " (終日)"
-	}
-	return "時刻不明"
 }
 
 // convertToEvent Google Calendar APIのイベントを内部構造体に変換
