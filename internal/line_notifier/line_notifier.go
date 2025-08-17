@@ -61,15 +61,6 @@ func (notifier *Notifier) SendScheduleNotification(ctx context.Context, todayEve
 	return notifier.sendPushMessage(ctx, message)
 }
 
-// SendTestMessage テスト用メッセージを送信（開発・デバッグ用）
-func (notifier *Notifier) SendTestMessage(ctx context.Context, message string) error {
-	testMessage := fmt.Sprintf("🧪 テストメッセージ\n\n%s\n\n⏰ 送信時刻: %s",
-		message,
-		time.Now().Format("2006/01/02 15:04:05"))
-
-	return notifier.sendPushMessage(ctx, testMessage)
-}
-
 // buildScheduleMessage 予定通知用のメッセージを構築
 func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []calendar.Event) string {
 	var messageBuilder strings.Builder
