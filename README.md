@@ -80,9 +80,21 @@ go run cmd/main.go
 
 #### テスト実行
 
+##### ユニットテスト
+外部サービスに接続しない、高速なテストです。
+
 ```bash
-# テスト実行
+# ユニットテストを実行
 make test
+```
+
+##### インテグレーションテスト
+実際にGoogle Calendar APIに接続して動作を確認するテストです。
+**注意:** このテストを実行するには、リポジトリのルートに`.env`ファイルを作成し、有効な認証情報を設定する必要があります。`.env.example`を参考にしてください。
+
+```bash
+# インテグレーションテストを実行
+make test-integration
 ```
 
 #### CI/CDによる自動デプロイ
@@ -153,9 +165,21 @@ go run cmd/main.go
 
 #### Run Tests
 
+##### Unit Tests
+These are fast tests that do not connect to external services.
+
 ```bash
-# Run tests
+# Run unit tests
 make test
+```
+
+##### Integration Tests
+These tests connect to the actual Google Calendar API to verify functionality.
+**Note:** To run these tests, you must create a `.env` file in the root of the repository and set valid credentials. Refer to `.env.example` for guidance.
+
+```bash
+# Run integration tests
+make test-integration
 ```
 
 #### Automated CI/CD Deployment
