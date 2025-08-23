@@ -102,8 +102,6 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 	}, nil
 }
 
-// transformToNotifierEvents は calendar.Event のスライスを line_notifier.Event のスライスに変換します。
-// これにより、 `line_notifier` パッケージが `calendar` パッケージに依存しないようになります。
 func transformToNotifierEvents(events []calendar.Event) []line_notifier.Event {
 	notifierEvents := make([]line_notifier.Event, 0, len(events))
 	for _, e := range events {

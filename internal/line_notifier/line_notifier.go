@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-// Event 通知に必要なイベント情報を表す構造体
-// この構造体は `calendar` パッケージから独立しています。
 type Event struct {
 	Title     string
 	StartTime time.Time
