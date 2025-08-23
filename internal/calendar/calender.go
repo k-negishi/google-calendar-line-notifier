@@ -8,8 +8,6 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
-
-	"github.com/k-negishi/google-calendar-line-notifier/internal/config"
 )
 
 // Event カレンダーイベントの構造体
@@ -31,15 +29,12 @@ type Client struct {
 }
 
 // NewClient Google Calendarクライアントを作成
-func NewClient(cfg *config.Config) (*Client, error) {
+func NewClient(credentialsJSON []byte, calendarID string) (*Client, error) {
 	// JST固定でタイムゾーンを設定
 	timezone, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
 		return nil, fmt.Errorf("JSTタイムゾーンの読み込みに失敗しました: %v", err)
 	}
-
-	// Google認証情報を準備
-	credentialsJSON := []byte(cfg.GoogleCredentials)
 
 	// サービスアカウント認証でCalendar APIクライアントを作成
 	creds, err := google.CredentialsFromJSON(
@@ -61,7 +56,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	return &Client{
 		service:    service,
-		calendarID: cfg.CalendarID,
+		calendarID: calendarID,
 		timezone:   timezone,
 	}, nil
 }

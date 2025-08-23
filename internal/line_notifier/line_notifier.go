@@ -8,10 +8,15 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/k-negishi/google-calendar-line-notifier/internal/calendar"
-	"github.com/k-negishi/google-calendar-line-notifier/internal/config"
 )
+
+type Event struct {
+	Title     string
+	StartTime time.Time
+	EndTime   time.Time
+	IsAllDay  bool
+	Location  string
+}
 
 // Notifier LINE Messaging API通知クライアント
 type Notifier struct {
@@ -42,10 +47,10 @@ type ErrorResponse struct {
 }
 
 // NewNotifier LINE通知クライアントを作成
-func NewNotifier(cfg *config.Config) *Notifier {
+func NewNotifier(channelAccessToken, userID string) *Notifier {
 	return &Notifier{
-		channelAccessToken: cfg.LineChannelAccessToken,
-		userID:             cfg.LineUserID,
+		channelAccessToken: channelAccessToken,
+		userID:             userID,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -53,7 +58,7 @@ func NewNotifier(cfg *config.Config) *Notifier {
 }
 
 // SendScheduleNotification カレンダー予定をLINEで通知
-func (notifier *Notifier) SendScheduleNotification(ctx context.Context, todayEvents, tomorrowEvents []calendar.Event) error {
+func (notifier *Notifier) SendScheduleNotification(ctx context.Context, todayEvents, tomorrowEvents []Event) error {
 	// 通知メッセージを作成
 	message := notifier.buildScheduleMessage(todayEvents, tomorrowEvents)
 
@@ -62,7 +67,7 @@ func (notifier *Notifier) SendScheduleNotification(ctx context.Context, todayEve
 }
 
 // buildScheduleMessage 予定通知用のメッセージを構築
-func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []calendar.Event) string {
+func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []Event) string {
 	var messageBuilder strings.Builder
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 	today := time.Now().In(jst)
@@ -99,7 +104,7 @@ func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []cal
 }
 
 // appendEventToMessage イベントをメッセージに追加
-func (notifier *Notifier) appendEventToMessage(builder *strings.Builder, event calendar.Event) {
+func (notifier *Notifier) appendEventToMessage(builder *strings.Builder, event Event) {
 	if event.IsAllDay {
 		builder.WriteString(fmt.Sprintf("🔸 %s (終日)\n", event.Title))
 	} else {
