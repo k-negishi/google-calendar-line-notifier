@@ -131,11 +131,11 @@ func (c *Client) convertToEvent(event *calendar.Event) (Event, error) {
 		calendarEvent.IsAllDay = false
 	} else if event.Start.Date != "" {
 		// 終日イベント
-		startTime, err := time.Parse("2006-01-02", event.Start.Date)
+		startTime, err := time.ParseInLocation("2006-01-02", event.Start.Date, c.timezone)
 		if err != nil {
 			return Event{}, fmt.Errorf("開始日の解析に失敗しました: %v", err)
 		}
-		calendarEvent.StartTime = startTime.In(c.timezone)
+		calendarEvent.StartTime = startTime
 		calendarEvent.IsAllDay = true
 	} else {
 		return Event{}, fmt.Errorf("開始時刻が設定されていません")
@@ -151,11 +151,11 @@ func (c *Client) convertToEvent(event *calendar.Event) (Event, error) {
 		calendarEvent.EndTime = endTime.In(c.timezone)
 	} else if event.End.Date != "" {
 		// 終日イベント
-		endTime, err := time.Parse("2006-01-02", event.End.Date)
+		endTime, err := time.ParseInLocation("2006-01-02", event.End.Date, c.timezone)
 		if err != nil {
 			return Event{}, fmt.Errorf("終了日の解析に失敗しました: %v", err)
 		}
-		calendarEvent.EndTime = endTime.In(c.timezone)
+		calendarEvent.EndTime = endTime
 	} else {
 		return Event{}, fmt.Errorf("終了時刻が設定されていません")
 	}

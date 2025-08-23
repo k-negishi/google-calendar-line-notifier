@@ -12,6 +12,11 @@ deps:
 test:
 	go test ./...
 
+# インテグレーションテスト（.envファイルが必要）
+test-integration:
+	@echo "Running integration tests... (requires .env file)"
+	go test -v -tags=integration ./...
+
 # ローカル実行
 run-local:
 	go run $(MAIN_PATH)/main.go
