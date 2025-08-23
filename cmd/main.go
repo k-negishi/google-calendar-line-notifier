@@ -36,7 +36,7 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 	}
 
 	// Google Calendarクライアントを初期化
-	calendarClient, err := calendar.NewClient(cfg)
+	calendarClient, err := calendar.NewClient([]byte(cfg.GoogleCredentials), cfg.CalendarID)
 	if err != nil {
 		return LambdaResponse{
 			StatusCode: 500,
@@ -45,7 +45,7 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 	}
 
 	// LINE通知クライアントを初期化
-	lineNotifier := line_notifier.NewNotifier(cfg)
+	lineNotifier := line_notifier.NewNotifier(cfg.LineChannelAccessToken, cfg.LineUserID)
 
 	// JST固定で現在時刻を取得
 	jst, _ := time.LoadLocation("Asia/Tokyo")
@@ -82,8 +82,12 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 		}, nil
 	}
 
+	// line_notifierパッケージ用のイベント構造体に変換
+	notifierTodayEvents := transformToNotifierEvents(todayEvents)
+	notifierTomorrowEvents := transformToNotifierEvents(tomorrowEvents)
+
 	// LINE通知メッセージを作成・送信
-	err = lineNotifier.SendScheduleNotification(ctx, todayEvents, tomorrowEvents)
+	err = lineNotifier.SendScheduleNotification(ctx, notifierTodayEvents, notifierTomorrowEvents)
 	if err != nil {
 		log.Printf("LINE通知の送信に失敗しました: %v", err)
 		return LambdaResponse{
@@ -96,6 +100,22 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 		StatusCode: 200,
 		Message:    "通知送信完了",
 	}, nil
+}
+
+// transformToNotifierEvents は calendar.Event のスライスを line_notifier.Event のスライスに変換します。
+// これにより、 `line_notifier` パッケージが `calendar` パッケージに依存しないようになります。
+func transformToNotifierEvents(events []calendar.Event) []line_notifier.Event {
+	notifierEvents := make([]line_notifier.Event, 0, len(events))
+	for _, e := range events {
+		notifierEvents = append(notifierEvents, line_notifier.Event{
+			Title:     e.Title,
+			StartTime: e.StartTime,
+			EndTime:   e.EndTime,
+			IsAllDay:  e.IsAllDay,
+			Location:  e.Location,
+		})
+	}
+	return notifierEvents
 }
 
 func main() {
