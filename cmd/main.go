@@ -9,7 +9,7 @@ import (
 
 	"github.com/k-negishi/google-calendar-line-notifier/internal/calendar"
 	"github.com/k-negishi/google-calendar-line-notifier/internal/config"
-	"github.com/k-negishi/google-calendar-line-notifier/internal/line_notifier"
+	"github.com/k-negishi/google-calendar-line-notifier/internal/linenotifier"
 )
 
 // LambdaEvent Lambda実行時のイベント構造体
@@ -24,7 +24,7 @@ type LambdaResponse struct {
 }
 
 // handler Lambda関数のメインハンドラー
-func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
+func handler(ctx context.Context, _ LambdaEvent) (LambdaResponse, error) {
 
 	// 設定を読み込み
 	cfg, err := config.Load()
@@ -45,7 +45,7 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 	}
 
 	// LINE通知クライアントを初期化
-	lineNotifier := line_notifier.NewNotifier(cfg.LineChannelAccessToken, cfg.LineUserID)
+	lineNotifier := linenotifier.NewNotifier(cfg.LineChannelAccessToken, cfg.LineUserID)
 
 	// JST固定で現在時刻を取得
 	jst, _ := time.LoadLocation("Asia/Tokyo")
@@ -82,7 +82,7 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 		}, nil
 	}
 
-	// line_notifierパッケージ用のイベント構造体に変換
+	// linenotifierパッケージ用のイベント構造体に変換
 	notifierTodayEvents := transformToNotifierEvents(todayEvents)
 	notifierTomorrowEvents := transformToNotifierEvents(tomorrowEvents)
 
@@ -102,10 +102,10 @@ func handler(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 	}, nil
 }
 
-func transformToNotifierEvents(events []calendar.Event) []line_notifier.Event {
-	notifierEvents := make([]line_notifier.Event, 0, len(events))
+func transformToNotifierEvents(events []calendar.Event) []linenotifier.Event {
+	notifierEvents := make([]linenotifier.Event, 0, len(events))
 	for _, e := range events {
-		notifierEvents = append(notifierEvents, line_notifier.Event{
+		notifierEvents = append(notifierEvents, linenotifier.Event{
 			Title:     e.Title,
 			StartTime: e.StartTime,
 			EndTime:   e.EndTime,

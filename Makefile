@@ -1,5 +1,7 @@
 # Google Calendar LINE Notifier
 
+GOLANGCI_LINT := $(shell go env GOPATH)/bin/golangci-lint
+
 BINARY_NAME=bootstrap
 MAIN_PATH=cmd
 STACK_NAME=google-calendar-line-notifier
@@ -9,8 +11,13 @@ deps:
 	go mod tidy
 
 # テスト
-test:
+test: lint
 	go test ./...
+
+# Linter
+lint:
+	@echo "Running linter..."
+	@$(GOLANGCI_LINT) run ./...
 
 # ローカル実行
 run-local:

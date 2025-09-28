@@ -43,7 +43,7 @@ func NewClient(credentialsJSON []byte, calendarID string) (*Client, error) {
 		calendar.CalendarReadonlyScope,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Google認証情報の読み込みに失敗しました: %v", err)
+		return nil, fmt.Errorf("google認証情報の読み込みに失敗しました: %v", err)
 	}
 
 	service, err := calendar.NewService(
@@ -51,7 +51,7 @@ func NewClient(credentialsJSON []byte, calendarID string) (*Client, error) {
 		option.WithCredentials(creds),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Google Calendar APIサービスの作成に失敗しました: %v", err)
+		return nil, fmt.Errorf("google Calendar APIサービスの作成に失敗しました: %v", err)
 	}
 
 	return &Client{
@@ -62,7 +62,7 @@ func NewClient(credentialsJSON []byte, calendarID string) (*Client, error) {
 }
 
 // GetEvents 指定された日の予定を取得
-func (c *Client) GetEvents(ctx context.Context, targetDate time.Time) ([]Event, error) {
+func (c *Client) GetEvents(_ context.Context, targetDate time.Time) ([]Event, error) {
 	// JST固定で開始時刻と終了時刻を設定
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 
@@ -93,7 +93,7 @@ func (c *Client) GetEvents(ctx context.Context, targetDate time.Time) ([]Event, 
 	}
 
 	// イベントを変換
-	var calendarEvents []Event
+	calendarEvents := make([]Event, 0, len(events.Items))
 	for _, event := range events.Items {
 		calendarEvent, err := c.convertToEvent(event)
 		if err != nil {
