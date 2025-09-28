@@ -1,4 +1,4 @@
-package line_notifier
+package linenotifier
 
 import (
 	"bytes"

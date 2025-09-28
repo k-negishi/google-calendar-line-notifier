@@ -87,7 +87,7 @@ func loadAWSConfig() (*Config, error) {
 
 	// Parameter Storeから機密情報を取得
 	if err := cfg.loadFromParameterStore(); err != nil {
-		return nil, fmt.Errorf("Parameter Storeからの設定読み込みに失敗しました: %v", err)
+		return nil, fmt.Errorf("parameter Storeからの設定読み込みに失敗しました: %v", err)
 	}
 
 	return cfg, nil
@@ -100,13 +100,13 @@ func (cfg *Config) loadFromParameterStore() error {
 	// 環境変数からパラメータ名を取得
 	googleCredsParam := getEnvOrDefault("SSM_GOOGLE_CREDS_PARAM", "/google-calendar-line-notifier/google-creds")
 	lineTokenParam := getEnvOrDefault("SSM_LINE_TOKEN_PARAM", "/google-calendar-line-notifier/line-channel-access-token")
-	lineUserIdParam := getEnvOrDefault("SSM_LINE_USER_ID_PARAM", "/google-calendar-line-notifier/line-user-id")
-	calendarIdParam := getEnvOrDefault("SSM_CALENDAR_ID_PARAM", "/google-calendar-line-notifier/calendar-id")
+	lineUserIDParam := getEnvOrDefault("SSM_LINE_USER_ID_PARAM", "/google-calendar-line-notifier/line-user-id")
+	calendarIDParam := getEnvOrDefault("SSM_CALENDAR_ID_PARAM", "/google-calendar-line-notifier/calendar-id")
 
 	// Parameter Storeから値を取得
 	googleCreds, err := cfg.getParameter(ctx, googleCredsParam, true) // SecureString用にwithDecryption=true
 	if err != nil {
-		return fmt.Errorf("Google認証情報の取得に失敗しました: %v", err)
+		return fmt.Errorf("google認証情報の取得に失敗しました: %v", err)
 	}
 	cfg.GoogleCredentials = googleCreds
 
@@ -121,11 +121,11 @@ func (cfg *Config) loadFromParameterStore() error {
 	}
 
 	// LINE User ID も SecureString として取得するように修正
-	lineUserId, err := cfg.getParameter(ctx, lineUserIdParam, true) // SecureString用にwithDecryption=true に変更
+	lineUserID, err := cfg.getParameter(ctx, lineUserIDParam, true) // SecureString用にwithDecryption=true に変更
 	if err != nil {
 		return fmt.Errorf("LINE User IDの取得に失敗しました: %v", err)
 	}
-	cfg.LineUserID = lineUserId
+	cfg.LineUserID = lineUserID
 	// デバッグ: User IDの長さと最初の5文字をログ出力（セキュリティのため）
 	if len(cfg.LineUserID) >= 5 {
 		fmt.Printf("LINE User ID loaded: length=%d, first 5 chars=%s...\n", len(cfg.LineUserID), cfg.LineUserID[:5])
@@ -133,11 +133,11 @@ func (cfg *Config) loadFromParameterStore() error {
 		fmt.Printf("LINE User ID loaded: length=%d, value=%s\n", len(cfg.LineUserID), cfg.LineUserID)
 	}
 
-	calendarId, err := cfg.getParameter(ctx, calendarIdParam, false) // String型
+	calendarID, err := cfg.getParameter(ctx, calendarIDParam, false) // String型
 	if err != nil {
-		return fmt.Errorf("Calendar IDの取得に失敗しました: %v", err)
+		return fmt.Errorf("calendar IDの取得に失敗しました: %v", err)
 	}
-	cfg.CalendarID = calendarId
+	cfg.CalendarID = calendarID
 	fmt.Printf("Calendar ID loaded: %s\n", cfg.CalendarID)
 
 	return nil
