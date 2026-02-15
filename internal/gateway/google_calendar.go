@@ -1,4 +1,4 @@
-package calendar
+package gateway
 
 import (
 	"context"
@@ -8,28 +8,19 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
+
+	"github.com/k-negishi/google-calendar-line-notifier/internal/domain"
 )
 
-// Event カレンダーイベントの構造体
-type Event struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	StartTime   time.Time `json:"start_time"`
-	EndTime     time.Time `json:"end_time"`
-	IsAllDay    bool      `json:"is_all_day"`
-	Location    string    `json:"location,omitempty"`
-	Description string    `json:"description,omitempty"`
-}
-
-// Client Google Calendar APIクライアント
-type Client struct {
+// GoogleCalendarRepository Google Calendar APIを使用したCalendarRepositoryの実装
+type GoogleCalendarRepository struct {
 	service    *calendar.Service
 	calendarID string
 	timezone   *time.Location
 }
 
-// NewClient Google Calendarクライアントを作成
-func NewClient(credentialsJSON []byte, calendarID string) (*Client, error) {
+// NewGoogleCalendarRepository Google Calendarリポジトリを作成
+func NewGoogleCalendarRepository(credentialsJSON []byte, calendarID string) (*GoogleCalendarRepository, error) {
 	// JST固定でタイムゾーンを設定
 	timezone, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
@@ -54,7 +45,7 @@ func NewClient(credentialsJSON []byte, calendarID string) (*Client, error) {
 		return nil, fmt.Errorf("google Calendar APIサービスの作成に失敗しました: %v", err)
 	}
 
-	return &Client{
+	return &GoogleCalendarRepository{
 		service:    service,
 		calendarID: calendarID,
 		timezone:   timezone,
@@ -62,7 +53,7 @@ func NewClient(credentialsJSON []byte, calendarID string) (*Client, error) {
 }
 
 // GetEvents 指定された日の予定を取得
-func (c *Client) GetEvents(_ context.Context, targetDate time.Time) ([]Event, error) {
+func (r *GoogleCalendarRepository) GetEvents(_ context.Context, targetDate time.Time) ([]domain.Event, error) {
 	// JST固定で開始時刻と終了時刻を設定
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 
@@ -80,7 +71,7 @@ func (c *Client) GetEvents(_ context.Context, targetDate time.Time) ([]Event, er
 	timeMaxStr := endTimeInJST.Format(time.RFC3339)
 
 	// Google Calendar APIの呼び出し
-	eventsCall := c.service.Events.List(c.calendarID).
+	eventsCall := r.service.Events.List(r.calendarID).
 		TimeMin(timeMinStr).
 		TimeMax(timeMaxStr).
 		SingleEvents(true).
@@ -93,22 +84,22 @@ func (c *Client) GetEvents(_ context.Context, targetDate time.Time) ([]Event, er
 	}
 
 	// イベントを変換
-	calendarEvents := make([]Event, 0, len(events.Items))
+	domainEvents := make([]domain.Event, 0, len(events.Items))
 	for _, event := range events.Items {
-		calendarEvent, err := c.convertToEvent(event)
+		domainEvent, err := r.convertToEvent(event)
 		if err != nil {
 			fmt.Printf("Warning: イベントの変換をスキップしました: %v\n", err)
 			continue
 		}
-		calendarEvents = append(calendarEvents, calendarEvent)
+		domainEvents = append(domainEvents, domainEvent)
 	}
 
-	return calendarEvents, nil
+	return domainEvents, nil
 }
 
-// convertToEvent Google Calendar APIのイベントを内部構造体に変換
-func (c *Client) convertToEvent(event *calendar.Event) (Event, error) {
-	calendarEvent := Event{
+// convertToEvent Google Calendar APIのイベントをドメインエンティティに変換
+func (r *GoogleCalendarRepository) convertToEvent(event *calendar.Event) (domain.Event, error) {
+	domainEvent := domain.Event{
 		ID:          event.Id,
 		Title:       event.Summary,
 		Location:    event.Location,
@@ -116,8 +107,8 @@ func (c *Client) convertToEvent(event *calendar.Event) (Event, error) {
 	}
 
 	// タイトルが空の場合は「（無題）」に設定
-	if calendarEvent.Title == "" {
-		calendarEvent.Title = "（無題）"
+	if domainEvent.Title == "" {
+		domainEvent.Title = "（無題）"
 	}
 
 	// 開始時刻の処理
@@ -125,20 +116,20 @@ func (c *Client) convertToEvent(event *calendar.Event) (Event, error) {
 		// 時刻指定ありのイベント
 		startTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
 		if err != nil {
-			return Event{}, fmt.Errorf("開始時刻の解析に失敗しました: %v", err)
+			return domain.Event{}, fmt.Errorf("開始時刻の解析に失敗しました: %v", err)
 		}
-		calendarEvent.StartTime = startTime.In(c.timezone)
-		calendarEvent.IsAllDay = false
+		domainEvent.StartTime = startTime.In(r.timezone)
+		domainEvent.IsAllDay = false
 	} else if event.Start.Date != "" {
 		// 終日イベント
 		startTime, err := time.Parse("2006-01-02", event.Start.Date)
 		if err != nil {
-			return Event{}, fmt.Errorf("開始日の解析に失敗しました: %v", err)
+			return domain.Event{}, fmt.Errorf("開始日の解析に失敗しました: %v", err)
 		}
-		calendarEvent.StartTime = startTime.In(c.timezone)
-		calendarEvent.IsAllDay = true
+		domainEvent.StartTime = startTime.In(r.timezone)
+		domainEvent.IsAllDay = true
 	} else {
-		return Event{}, fmt.Errorf("開始時刻が設定されていません")
+		return domain.Event{}, fmt.Errorf("開始時刻が設定されていません")
 	}
 
 	// 終了時刻の処理
@@ -146,19 +137,19 @@ func (c *Client) convertToEvent(event *calendar.Event) (Event, error) {
 		// 時刻指定ありのイベント
 		endTime, err := time.Parse(time.RFC3339, event.End.DateTime)
 		if err != nil {
-			return Event{}, fmt.Errorf("終了時刻の解析に失敗しました: %v", err)
+			return domain.Event{}, fmt.Errorf("終了時刻の解析に失敗しました: %v", err)
 		}
-		calendarEvent.EndTime = endTime.In(c.timezone)
+		domainEvent.EndTime = endTime.In(r.timezone)
 	} else if event.End.Date != "" {
 		// 終日イベント
 		endTime, err := time.Parse("2006-01-02", event.End.Date)
 		if err != nil {
-			return Event{}, fmt.Errorf("終了日の解析に失敗しました: %v", err)
+			return domain.Event{}, fmt.Errorf("終了日の解析に失敗しました: %v", err)
 		}
-		calendarEvent.EndTime = endTime.In(c.timezone)
+		domainEvent.EndTime = endTime.In(r.timezone)
 	} else {
-		return Event{}, fmt.Errorf("終了時刻が設定されていません")
+		return domain.Event{}, fmt.Errorf("終了時刻が設定されていません")
 	}
 
-	return calendarEvent, nil
+	return domainEvent, nil
 }

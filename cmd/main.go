@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 
-	"github.com/k-negishi/google-calendar-line-notifier/internal/calendar"
 	"github.com/k-negishi/google-calendar-line-notifier/internal/config"
-	"github.com/k-negishi/google-calendar-line-notifier/internal/linenotifier"
+	"github.com/k-negishi/google-calendar-line-notifier/internal/gateway"
+	"github.com/k-negishi/google-calendar-line-notifier/internal/usecase"
 )
 
 // LambdaEvent Lambda実行時のイベント構造体
@@ -25,7 +24,6 @@ type LambdaResponse struct {
 
 // handler Lambda関数のメインハンドラー
 func handler(ctx context.Context, _ LambdaEvent) (LambdaResponse, error) {
-
 	// 設定を読み込み
 	cfg, err := config.Load()
 	if err != nil {
@@ -35,8 +33,8 @@ func handler(ctx context.Context, _ LambdaEvent) (LambdaResponse, error) {
 		}, err
 	}
 
-	// Google Calendarクライアントを初期化
-	calendarClient, err := calendar.NewClient([]byte(cfg.GoogleCredentials), cfg.CalendarID)
+	// 依存性の注入: Google Calendarリポジトリを初期化
+	calendarRepo, err := gateway.NewGoogleCalendarRepository([]byte(cfg.GoogleCredentials), cfg.CalendarID)
 	if err != nil {
 		return LambdaResponse{
 			StatusCode: 500,
@@ -44,8 +42,11 @@ func handler(ctx context.Context, _ LambdaEvent) (LambdaResponse, error) {
 		}, err
 	}
 
-	// LINE通知クライアントを初期化
-	lineNotifier := linenotifier.NewNotifier(cfg.LineChannelAccessToken, cfg.LineUserID)
+	// 依存性の注入: LINE通知クライアントを初期化
+	notifier := gateway.NewLINENotifier(cfg.LineChannelAccessToken, cfg.LineUserID)
+
+	// ユースケースを生成
+	uc := usecase.NewNotifyScheduleUseCase(calendarRepo, notifier)
 
 	// JST固定で現在時刻を取得
 	jst, _ := time.LoadLocation("Asia/Tokyo")
@@ -55,65 +56,26 @@ func handler(ctx context.Context, _ LambdaEvent) (LambdaResponse, error) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jst)
 	tomorrow := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, jst)
 
-	// 今日と明日の予定を取得
-	todayEvents, err := calendarClient.GetEvents(ctx, today)
+	// ユースケースを実行
+	skipped, err := uc.Execute(ctx, today, tomorrow)
 	if err != nil {
-		log.Printf("今日の予定取得に失敗しました: %v", err)
 		return LambdaResponse{
 			StatusCode: 500,
-			Message:    "今日の予定取得エラー",
+			Message:    "通知処理エラー",
 		}, err
 	}
 
-	tomorrowEvents, err := calendarClient.GetEvents(ctx, tomorrow)
-	if err != nil {
-		log.Printf("明日の予定取得に失敗しました: %v", err)
-		return LambdaResponse{
-			StatusCode: 500,
-			Message:    "明日の予定取得エラー",
-		}, err
-	}
-
-	// 予定が両日ともない場合はスキップ
-	if len(todayEvents) == 0 && len(tomorrowEvents) == 0 {
+	if skipped {
 		return LambdaResponse{
 			StatusCode: 200,
 			Message:    "予定なしのため通知スキップ",
 		}, nil
 	}
 
-	// linenotifierパッケージ用のイベント構造体に変換
-	notifierTodayEvents := transformToNotifierEvents(todayEvents)
-	notifierTomorrowEvents := transformToNotifierEvents(tomorrowEvents)
-
-	// LINE通知メッセージを作成・送信
-	err = lineNotifier.SendScheduleNotification(ctx, notifierTodayEvents, notifierTomorrowEvents)
-	if err != nil {
-		log.Printf("LINE通知の送信に失敗しました: %v", err)
-		return LambdaResponse{
-			StatusCode: 500,
-			Message:    "LINE通知送信エラー",
-		}, err
-	}
-
 	return LambdaResponse{
 		StatusCode: 200,
 		Message:    "通知送信完了",
 	}, nil
-}
-
-func transformToNotifierEvents(events []calendar.Event) []linenotifier.Event {
-	notifierEvents := make([]linenotifier.Event, 0, len(events))
-	for _, e := range events {
-		notifierEvents = append(notifierEvents, linenotifier.Event{
-			Title:     e.Title,
-			StartTime: e.StartTime,
-			EndTime:   e.EndTime,
-			IsAllDay:  e.IsAllDay,
-			Location:  e.Location,
-		})
-	}
-	return notifierEvents
 }
 
 func main() {
