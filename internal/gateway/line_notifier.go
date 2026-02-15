@@ -1,4 +1,4 @@
-package linenotifier
+package gateway
 
 import (
 	"bytes"
@@ -8,37 +8,31 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/k-negishi/google-calendar-line-notifier/internal/domain"
 )
 
-type Event struct {
-	Title     string
-	StartTime time.Time
-	EndTime   time.Time
-	IsAllDay  bool
-	Location  string
-}
-
-// Notifier LINE Messaging API通知クライアント
-type Notifier struct {
+// LINENotifier LINE Messaging APIを使用したNotifierの実装
+type LINENotifier struct {
 	channelAccessToken string
 	userID             string
 	httpClient         *http.Client
 }
 
-// Message LINE APIに送信するメッセージ構造体
-type Message struct {
+// lineMessage LINE APIに送信するメッセージ構造体
+type lineMessage struct {
 	Type string `json:"type"`
 	Text string `json:"text"`
 }
 
-// PushRequest LINE Push APIのリクエスト構造体
-type PushRequest struct {
-	To       string    `json:"to"`
-	Messages []Message `json:"messages"`
+// linePushRequest LINE Push APIのリクエスト構造体
+type linePushRequest struct {
+	To       string        `json:"to"`
+	Messages []lineMessage `json:"messages"`
 }
 
-// ErrorResponse LINE APIのエラーレスポンス構造体
-type ErrorResponse struct {
+// lineErrorResponse LINE APIのエラーレスポンス構造体
+type lineErrorResponse struct {
 	Message string `json:"message"`
 	Details []struct {
 		Message  string `json:"message"`
@@ -46,9 +40,9 @@ type ErrorResponse struct {
 	} `json:"details"`
 }
 
-// NewNotifier LINE通知クライアントを作成
-func NewNotifier(channelAccessToken, userID string) *Notifier {
-	return &Notifier{
+// NewLINENotifier LINE通知クライアントを作成
+func NewLINENotifier(channelAccessToken, userID string) *LINENotifier {
+	return &LINENotifier{
 		channelAccessToken: channelAccessToken,
 		userID:             userID,
 		httpClient: &http.Client{
@@ -58,16 +52,16 @@ func NewNotifier(channelAccessToken, userID string) *Notifier {
 }
 
 // SendScheduleNotification カレンダー予定をLINEで通知
-func (notifier *Notifier) SendScheduleNotification(ctx context.Context, todayEvents, tomorrowEvents []Event) error {
+func (n *LINENotifier) SendScheduleNotification(ctx context.Context, todayEvents, tomorrowEvents []domain.Event) error {
 	// 通知メッセージを作成
-	message := notifier.buildScheduleMessage(todayEvents, tomorrowEvents)
+	message := n.buildScheduleMessage(todayEvents, tomorrowEvents)
 
 	// LINE Push APIでメッセージを送信
-	return notifier.sendPushMessage(ctx, message)
+	return n.sendPushMessage(ctx, message)
 }
 
 // buildScheduleMessage 予定通知用のメッセージを構築
-func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []Event) string {
+func (n *LINENotifier) buildScheduleMessage(todayEvents, tomorrowEvents []domain.Event) string {
 	var messageBuilder strings.Builder
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 	today := time.Now().In(jst)
@@ -80,7 +74,7 @@ func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []Eve
 	if len(todayEvents) > 0 {
 		messageBuilder.WriteString(fmt.Sprintf("本日 %s(%s) (%d件):\n", today.Format("1/2"), dowToday, len(todayEvents)))
 		for _, event := range todayEvents {
-			notifier.appendEventToMessage(&messageBuilder, event)
+			appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
 		messageBuilder.WriteString(fmt.Sprintf("本日 %s(%s): 予定なし\n", today.Format("1/2"), dowToday))
@@ -94,7 +88,7 @@ func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []Eve
 	if len(tomorrowEvents) > 0 {
 		messageBuilder.WriteString(fmt.Sprintf("翌日 %s(%s) (%d件):\n", tomorrow.Format("1/2"), dowTomorrow, len(tomorrowEvents)))
 		for _, event := range tomorrowEvents {
-			notifier.appendEventToMessage(&messageBuilder, event)
+			appendEventToMessage(&messageBuilder, event)
 		}
 	} else {
 		messageBuilder.WriteString(fmt.Sprintf("翌日 %s(%s): 予定なし\n", tomorrow.Format("1/2"), dowTomorrow))
@@ -104,7 +98,7 @@ func (notifier *Notifier) buildScheduleMessage(todayEvents, tomorrowEvents []Eve
 }
 
 // appendEventToMessage イベントをメッセージに追加
-func (notifier *Notifier) appendEventToMessage(builder *strings.Builder, event Event) {
+func appendEventToMessage(builder *strings.Builder, event domain.Event) {
 	if event.IsAllDay {
 		builder.WriteString(fmt.Sprintf("🔸 %s (終日)\n", event.Title))
 	} else {
@@ -121,11 +115,11 @@ func (notifier *Notifier) appendEventToMessage(builder *strings.Builder, event E
 }
 
 // sendPushMessage LINE Push APIでメッセージを送信
-func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) error {
+func (n *LINENotifier) sendPushMessage(ctx context.Context, message string) error {
 	// リクエストボディを作成
-	pushRequest := PushRequest{
-		To: notifier.userID,
-		Messages: []Message{
+	pushRequest := linePushRequest{
+		To: n.userID,
+		Messages: []lineMessage{
 			{
 				Type: "text",
 				Text: message,
@@ -151,10 +145,10 @@ func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) e
 
 	// ヘッダーを設定
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", notifier.channelAccessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.channelAccessToken))
 
 	// APIリクエストを送信
-	resp, err := notifier.httpClient.Do(req)
+	resp, err := n.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("LINE APIリクエストの送信に失敗しました: %v", err)
 	}
@@ -163,7 +157,7 @@ func (notifier *Notifier) sendPushMessage(ctx context.Context, message string) e
 	// レスポンスを確認
 	if resp.StatusCode != http.StatusOK {
 		// エラーレスポンスの詳細を取得
-		var errorResponse ErrorResponse
+		var errorResponse lineErrorResponse
 		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
 			return fmt.Errorf("LINE API呼び出しが失敗しました (Status: %d, レスポンス解析不可: %v)", resp.StatusCode, err)
 		}
