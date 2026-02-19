@@ -17,6 +17,8 @@ type LINENotifier struct {
 	channelAccessToken string
 	userID             string
 	httpClient         *http.Client
+	endpoint           string
+	clock              func() time.Time
 }
 
 // lineMessage LINE APIに送信するメッセージ構造体
@@ -48,6 +50,8 @@ func NewLINENotifier(channelAccessToken, userID string) *LINENotifier {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		endpoint: "https://api.line.me/v2/bot/message/push",
+		clock:    time.Now,
 	}
 }
 
@@ -64,7 +68,7 @@ func (n *LINENotifier) SendScheduleNotification(ctx context.Context, todayEvents
 func (n *LINENotifier) buildScheduleMessage(todayEvents, tomorrowEvents []domain.Event) string {
 	var messageBuilder strings.Builder
 	jst, _ := time.LoadLocation("Asia/Tokyo")
-	today := time.Now().In(jst)
+	today := n.clock().In(jst)
 
 	// Google Calendar LINE Notifier
 	messageBuilder.WriteString("Google Calendar LINE Notifier\n\n")
@@ -136,7 +140,7 @@ func (n *LINENotifier) sendPushMessage(ctx context.Context, message string) erro
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"POST",
-		"https://api.line.me/v2/bot/message/push",
+		n.endpoint,
 		bytes.NewBuffer(requestBody),
 	)
 	if err != nil {

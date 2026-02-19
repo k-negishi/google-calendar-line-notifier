@@ -13,6 +13,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// SSMParameterGetter は AWS SSM Parameter Store からパラメータを取得する
+type SSMParameterGetter interface {
+	GetParameter(ctx context.Context, params *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error)
+}
+
 // Config アプリケーション設定構造体
 type Config struct {
 	// Google Calendar設定
@@ -27,7 +32,7 @@ type Config struct {
 	LogLevel string
 
 	// AWS関連（本番環境でのみ使用）
-	ssmClient *ssm.Client
+	ssmClient SSMParameterGetter
 }
 
 // Load 環境に応じて設定を読み込み

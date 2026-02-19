@@ -12,7 +12,7 @@ deps:
 
 # テスト
 test: lint
-	go test ./...
+	go test -cover -race ./...
 
 # Linter
 lint:

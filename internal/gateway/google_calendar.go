@@ -12,9 +12,34 @@ import (
 	"github.com/k-negishi/google-calendar-line-notifier/internal/domain"
 )
 
+// EventsProvider はカレンダーイベントの取得を抽象化する
+type EventsProvider interface {
+	ListEvents(calendarID, timeMin, timeMax string) ([]*calendar.Event, error)
+}
+
+// googleEventsProvider は Google Calendar API を使用した EventsProvider の実装
+type googleEventsProvider struct {
+	service *calendar.Service
+}
+
+func (p *googleEventsProvider) ListEvents(calendarID, timeMin, timeMax string) ([]*calendar.Event, error) {
+	eventsCall := p.service.Events.List(calendarID).
+		TimeMin(timeMin).
+		TimeMax(timeMax).
+		SingleEvents(true).
+		OrderBy("startTime").
+		MaxResults(50)
+
+	events, err := eventsCall.Do()
+	if err != nil {
+		return nil, err
+	}
+	return events.Items, nil
+}
+
 // GoogleCalendarRepository Google Calendar APIを使用したCalendarRepositoryの実装
 type GoogleCalendarRepository struct {
-	service    *calendar.Service
+	provider   EventsProvider
 	calendarID string
 	timezone   *time.Location
 }
@@ -45,11 +70,17 @@ func NewGoogleCalendarRepository(credentialsJSON []byte, calendarID string) (*Go
 		return nil, fmt.Errorf("google Calendar APIサービスの作成に失敗しました: %v", err)
 	}
 
+	provider := &googleEventsProvider{service: service}
+	return NewGoogleCalendarRepositoryWithProvider(provider, calendarID, timezone), nil
+}
+
+// NewGoogleCalendarRepositoryWithProvider EventsProviderを指定してリポジトリを作成（テスト用）
+func NewGoogleCalendarRepositoryWithProvider(provider EventsProvider, calendarID string, timezone *time.Location) *GoogleCalendarRepository {
 	return &GoogleCalendarRepository{
-		service:    service,
+		provider:   provider,
 		calendarID: calendarID,
 		timezone:   timezone,
-	}, nil
+	}
 }
 
 // GetEvents 指定された日の予定を取得
@@ -70,22 +101,15 @@ func (r *GoogleCalendarRepository) GetEvents(_ context.Context, targetDate time.
 	timeMinStr := startTimeInJST.Format(time.RFC3339)
 	timeMaxStr := endTimeInJST.Format(time.RFC3339)
 
-	// Google Calendar APIの呼び出し
-	eventsCall := r.service.Events.List(r.calendarID).
-		TimeMin(timeMinStr).
-		TimeMax(timeMaxStr).
-		SingleEvents(true).
-		OrderBy("startTime").
-		MaxResults(50) // 1日の予定上限を50件に設定
-
-	events, err := eventsCall.Do()
+	// EventsProvider経由でイベントを取得
+	items, err := r.provider.ListEvents(r.calendarID, timeMinStr, timeMaxStr)
 	if err != nil {
 		return nil, fmt.Errorf("カレンダーイベントの取得に失敗しました: %v", err)
 	}
 
 	// イベントを変換
-	domainEvents := make([]domain.Event, 0, len(events.Items))
-	for _, event := range events.Items {
+	domainEvents := make([]domain.Event, 0, len(items))
+	for _, event := range items {
 		domainEvent, err := r.convertToEvent(event)
 		if err != nil {
 			fmt.Printf("Warning: イベントの変換をスキップしました: %v\n", err)
