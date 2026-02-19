@@ -174,7 +174,7 @@ func TestSendPushMessage_Success(t *testing.T) {
 }
 
 func TestSendPushMessage_APIError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		err := json.NewEncoder(w).Encode(lineErrorResponse{
 			Message: "Invalid request",
