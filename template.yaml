@@ -32,8 +32,8 @@ Resources:
         DailySchedule:
           Type: Schedule
           Properties:
-            # 毎朝10:00 JST = 01:00 UTC
-            Schedule: cron(0 1 * * ? *)
+            # 毎朝09:00 JST = 00:00 UTC
+            Schedule: cron(0 0 * * ? *)
             Description: Google Calendar LINE Notifier Daily Schedule
             Enabled: true
 
