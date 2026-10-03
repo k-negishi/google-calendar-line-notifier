@@ -66,6 +66,68 @@ func TestConvertToEvent_AllDayEvent(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, result.IsAllDay)
 	assert.Equal(t, "終日イベント", result.Title)
+
+	// 開始日はJSTの00:00として扱う
+	startYear, startMonth, startDay := result.StartTime.Date()
+	assert.Equal(t, 2024, startYear)
+	assert.Equal(t, time.January, startMonth)
+	assert.Equal(t, 15, startDay)
+	assert.Equal(t, 0, result.StartTime.Hour())
+
+	// end.date は排他（翌日）で返るため、最終日に補正される
+	endYear, endMonth, endDay := result.EndTime.Date()
+	assert.Equal(t, 2024, endYear)
+	assert.Equal(t, time.January, endMonth)
+	assert.Equal(t, 15, endDay)
+}
+
+func TestConvertToEvent_MultiDayAllDayEvent(t *testing.T) {
+	jst, _ := time.LoadLocation("Asia/Tokyo")
+	repo := NewGoogleCalendarRepositoryWithProvider(nil, "test", jst)
+
+	event := &calendar.Event{
+		Id:      "5",
+		Summary: "連休",
+		Start:   &calendar.EventDateTime{Date: "2024-10-02"},
+		End:     &calendar.EventDateTime{Date: "2024-10-13"},
+	}
+
+	result, err := repo.convertToEvent(event)
+	require.NoError(t, err)
+	require.True(t, result.IsAllDay)
+
+	_, startMonth, startDay := result.StartTime.Date()
+	assert.Equal(t, time.October, startMonth)
+	assert.Equal(t, 2, startDay)
+
+	// 10/2〜10/12 の連休はAPIから end.date=10/13 で返る
+	_, endMonth, endDay := result.EndTime.Date()
+	assert.Equal(t, time.October, endMonth)
+	assert.Equal(t, 12, endDay)
+}
+
+func TestConvertToEvent_TimedEventWithDateEnd(t *testing.T) {
+	jst, _ := time.LoadLocation("Asia/Tokyo")
+	repo := NewGoogleCalendarRepositoryWithProvider(nil, "test", jst)
+
+	// 深夜0時終了の予定が、終日扱いの end.date で返るケース
+	event := &calendar.Event{
+		Id:      "6",
+		Summary: "ナイトイベント",
+		Start:   &calendar.EventDateTime{DateTime: "2024-10-02T22:00:00+09:00"},
+		End:     &calendar.EventDateTime{Date: "2024-10-03"},
+	}
+
+	result, err := repo.convertToEvent(event)
+	require.NoError(t, err)
+	require.False(t, result.IsAllDay)
+
+	// 時刻ありイベントなので終日の排他補正はかからず、終了は翌日0時になる
+	endYear, endMonth, endDay := result.EndTime.Date()
+	assert.Equal(t, 2024, endYear)
+	assert.Equal(t, time.October, endMonth)
+	assert.Equal(t, 3, endDay)
+	assert.Equal(t, 0, result.EndTime.Hour())
 }
 
 func TestConvertToEvent_EmptyTitle(t *testing.T) {

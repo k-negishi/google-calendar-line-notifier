@@ -64,7 +64,12 @@ func TestBuildScheduleMessage_WithEvents(t *testing.T) {
 		{Title: "朝会", StartTime: fixedTime, EndTime: fixedTime.Add(30 * time.Minute), IsAllDay: false},
 	}
 	tomorrowEvents := []domain.Event{
-		{Title: "終日イベント", IsAllDay: true},
+		{
+			Title:     "終日イベント",
+			StartTime: time.Date(2024, 1, 16, 0, 0, 0, 0, jst),
+			EndTime:   time.Date(2024, 1, 16, 0, 0, 0, 0, jst),
+			IsAllDay:  true,
+		},
 	}
 
 	message := n.buildScheduleMessage(todayEvents, tomorrowEvents)
@@ -105,24 +110,39 @@ func TestAppendEventToMessage_TimedEvent(t *testing.T) {
 
 	appendEventToMessage(&builder, event)
 
-	result := builder.String()
-	assert.Contains(t, result, "10:00〜11:00")
-	assert.Contains(t, result, "定例ミーティング")
+	assert.Equal(t, "🔸 10:00 ～ 11:00 定例ミーティング\n", builder.String())
+}
+
+func TestAppendEventToMessage_MultiDayTimedEvent(t *testing.T) {
+	var builder strings.Builder
+
+	jst := time.FixedZone("JST", 9*60*60)
+	event := domain.Event{
+		Title:     "1次先行受付(抽選)",
+		StartTime: time.Date(2024, 10, 2, 18, 0, 0, 0, jst),
+		EndTime:   time.Date(2024, 10, 12, 23, 59, 0, 0, jst),
+		IsAllDay:  false,
+	}
+
+	appendEventToMessage(&builder, event)
+
+	assert.Equal(t, "🔸 10/2 18:00 ～ 10/12 23:59 1次先行受付(抽選)\n", builder.String())
 }
 
 func TestAppendEventToMessage_AllDayEvent(t *testing.T) {
 	var builder strings.Builder
 
+	jst := time.FixedZone("JST", 9*60*60)
 	event := domain.Event{
-		Title:    "休暇",
-		IsAllDay: true,
+		Title:     "休暇",
+		StartTime: time.Date(2024, 1, 15, 0, 0, 0, 0, jst),
+		EndTime:   time.Date(2024, 1, 15, 0, 0, 0, 0, jst),
+		IsAllDay:  true,
 	}
 
 	appendEventToMessage(&builder, event)
 
-	result := builder.String()
-	assert.Contains(t, result, "休暇")
-	assert.Contains(t, result, "(終日)")
+	assert.Equal(t, "🔸 1/15 (終日) 休暇\n", builder.String())
 }
 
 func TestAppendEventToMessage_WithLocation(t *testing.T) {
@@ -142,6 +162,67 @@ func TestAppendEventToMessage_WithLocation(t *testing.T) {
 	result := builder.String()
 	assert.Contains(t, result, "外部ミーティング")
 	assert.Contains(t, result, "📍 渋谷オフィス")
+}
+
+// --- formatEventDateTimeRange テスト ---
+
+func TestFormatEventDateTimeRange(t *testing.T) {
+	jst := time.FixedZone("JST", 9*60*60)
+
+	tests := []struct {
+		name     string
+		event    domain.Event
+		expected string
+	}{
+		{
+			name: "時刻あり・同日は時刻のみ",
+			event: domain.Event{
+				StartTime: time.Date(2024, 1, 15, 13, 20, 0, 0, jst),
+				EndTime:   time.Date(2024, 1, 15, 14, 20, 0, 0, jst),
+			},
+			expected: "13:20 ～ 14:20",
+		},
+		{
+			name: "時刻あり・日をまたぐと開始終了の両方に日付が付く",
+			event: domain.Event{
+				StartTime: time.Date(2024, 10, 2, 18, 0, 0, 0, jst),
+				EndTime:   time.Date(2024, 10, 12, 23, 59, 0, 0, jst),
+			},
+			expected: "10/2 18:00 ～ 10/12 23:59",
+		},
+		{
+			name: "時刻あり・年をまたぐ場合も日付のみで表現する",
+			event: domain.Event{
+				StartTime: time.Date(2024, 12, 31, 22, 0, 0, 0, jst),
+				EndTime:   time.Date(2025, 1, 1, 2, 0, 0, 0, jst),
+			},
+			expected: "12/31 22:00 ～ 1/1 02:00",
+		},
+		{
+			name: "終日・1日は日付のみ",
+			event: domain.Event{
+				StartTime: time.Date(2024, 1, 15, 0, 0, 0, 0, jst),
+				EndTime:   time.Date(2024, 1, 15, 0, 0, 0, 0, jst),
+				IsAllDay:  true,
+			},
+			expected: "1/15 (終日)",
+		},
+		{
+			name: "終日・複数日は期間を表示する",
+			event: domain.Event{
+				StartTime: time.Date(2024, 10, 2, 0, 0, 0, 0, jst),
+				EndTime:   time.Date(2024, 10, 12, 0, 0, 0, 0, jst),
+				IsAllDay:  true,
+			},
+			expected: "10/2 ～ 10/12 (終日)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, formatEventDateTimeRange(tt.event))
+		})
+	}
 }
 
 // --- sendPushMessage テスト（httptest 使用） ---

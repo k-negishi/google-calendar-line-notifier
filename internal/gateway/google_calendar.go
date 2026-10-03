@@ -145,12 +145,12 @@ func (r *GoogleCalendarRepository) convertToEvent(event *calendar.Event) (domain
 		domainEvent.StartTime = startTime.In(r.timezone)
 		domainEvent.IsAllDay = false
 	} else if event.Start.Date != "" {
-		// 終日イベント
-		startTime, err := time.Parse("2006-01-02", event.Start.Date)
+		// 終日イベント（JSTの00:00として扱う）
+		startTime, err := time.ParseInLocation("2006-01-02", event.Start.Date, r.timezone)
 		if err != nil {
 			return domain.Event{}, fmt.Errorf("開始日の解析に失敗しました: %v", err)
 		}
-		domainEvent.StartTime = startTime.In(r.timezone)
+		domainEvent.StartTime = startTime
 		domainEvent.IsAllDay = true
 	} else {
 		return domain.Event{}, fmt.Errorf("開始時刻が設定されていません")
@@ -165,12 +165,16 @@ func (r *GoogleCalendarRepository) convertToEvent(event *calendar.Event) (domain
 		}
 		domainEvent.EndTime = endTime.In(r.timezone)
 	} else if event.End.Date != "" {
-		// 終日イベント
-		endTime, err := time.Parse("2006-01-02", event.End.Date)
+		// 終日イベント: Google Calendar APIの終了日は排他（翌日）のため、-1日して最終日に補正する
+		// 終日判定は開始側で確定した IsAllDay に従う。開始と終了で判定が食い違っても、時刻ありイベントの終了日を壊さないため
+		endTime, err := time.ParseInLocation("2006-01-02", event.End.Date, r.timezone)
 		if err != nil {
 			return domain.Event{}, fmt.Errorf("終了日の解析に失敗しました: %v", err)
 		}
-		domainEvent.EndTime = endTime.In(r.timezone)
+		if domainEvent.IsAllDay {
+			endTime = endTime.AddDate(0, 0, -1)
+		}
+		domainEvent.EndTime = endTime
 	} else {
 		return domain.Event{}, fmt.Errorf("終了時刻が設定されていません")
 	}

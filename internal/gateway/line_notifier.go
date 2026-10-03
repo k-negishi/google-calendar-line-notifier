@@ -103,19 +103,43 @@ func (n *LINENotifier) buildScheduleMessage(todayEvents, tomorrowEvents []domain
 
 // appendEventToMessage イベントをメッセージに追加
 func appendEventToMessage(builder *strings.Builder, event domain.Event) {
-	if event.IsAllDay {
-		builder.WriteString(fmt.Sprintf("🔸 %s (終日)\n", event.Title))
-	} else {
-		timeRange := fmt.Sprintf("%s〜%s",
-			event.StartTime.Format("15:04"),
-			event.EndTime.Format("15:04"))
-		builder.WriteString(fmt.Sprintf("🔸 %s %s\n", timeRange, event.Title))
-	}
+	builder.WriteString(fmt.Sprintf("🔸 %s %s\n", formatEventDateTimeRange(event), event.Title))
 
 	// 場所情報があれば追加
 	if event.Location != "" {
 		builder.WriteString(fmt.Sprintf("   📍 %s\n", event.Location))
 	}
+}
+
+// formatEventDateTimeRange 予定の日時範囲を通知表示用に整形する
+// 日をまたぐ予定は開始・終了の両方に日付を付け、同日の予定は時刻のみとする
+func formatEventDateTimeRange(event domain.Event) string {
+	startDate := event.StartTime.Format("1/2")
+	endDate := event.EndTime.Format("1/2")
+	sameDay := isSameDate(event.StartTime, event.EndTime)
+
+	switch {
+	case event.IsAllDay && sameDay:
+		return fmt.Sprintf("%s (終日)", startDate)
+	case event.IsAllDay:
+		return fmt.Sprintf("%s ～ %s (終日)", startDate, endDate)
+	case sameDay:
+		return fmt.Sprintf("%s ～ %s",
+			event.StartTime.Format("15:04"),
+			event.EndTime.Format("15:04"))
+	default:
+		return fmt.Sprintf("%s %s ～ %s %s",
+			startDate, event.StartTime.Format("15:04"),
+			endDate, event.EndTime.Format("15:04"))
+	}
+}
+
+// isSameDate 2つの時刻が同じ日付かどうかを判定する
+// StartTime/EndTimeはJSTに変換済みのため、そのままJSTでの日付比較になる
+func isSameDate(a, b time.Time) bool {
+	aYear, aMonth, aDay := a.Date()
+	bYear, bMonth, bDay := b.Date()
+	return aYear == bYear && aMonth == bMonth && aDay == bDay
 }
 
 // sendPushMessage LINE Push APIでメッセージを送信
